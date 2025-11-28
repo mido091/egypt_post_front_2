@@ -15,7 +15,7 @@
               :alt="settingsStore.siteName"
             />
             <span
-              class="ml-3 text-xl font-bold text-gray-900 dark:text-white hidden sm:block"
+              class="ml-2 text-base sm:text-xl font-bold text-gray-900 dark:text-white"
               >{{ settingsStore.siteName }}</span
             >
           </router-link>
@@ -31,7 +31,9 @@
             </router-link>
           </div>
         </div>
-        <div class="flex items-center gap-4">
+
+        <!-- Desktop Actions -->
+        <div class="hidden sm:flex items-center gap-4">
           <!-- Theme Toggle -->
           <button
             @click="
@@ -75,15 +77,121 @@
             >
               {{ $t("common.login") }}
             </router-link>
-            <!-- Register button removed - registration is owner-only via dashboard -->
           </template>
+        </div>
+
+        <!-- Mobile Hamburger Menu -->
+        <div class="flex sm:hidden items-center">
+          <button
+            @click="toggleMobileMenu"
+            class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 focus:outline-none transition-colors"
+            aria-label="Toggle menu"
+          >
+            <svg
+              class="h-6 w-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                v-if="!mobileMenuOpen"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 6h16M4 12h16M4 18h16"
+              />
+              <path
+                v-else
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
         </div>
       </div>
     </div>
+
+    <!-- Mobile Dropdown Menu -->
+    <transition
+      enter-active-class="transition duration-300 ease-out"
+      enter-from-class="opacity-0 -translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition duration-200 ease-in"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-2"
+    >
+      <div
+        v-if="mobileMenuOpen"
+        class="sm:hidden absolute top-16 left-0 right-0 bg-gray-900/90 dark:bg-gray-800/90 backdrop-blur-sm border-b border-gray-700 shadow-lg z-50 rounded-b-lg mx-4"
+      >
+        <div class="px-4 py-3 space-y-2">
+          <!-- Home -->
+          <router-link
+            to="/"
+            @click="closeMobileMenu"
+            class="block px-4 py-3 rounded-lg text-white hover:bg-white/10 transition-colors font-medium"
+          >
+            {{ $t("common.home") }}
+          </router-link>
+
+          <!-- Login/Dashboard -->
+          <template v-if="authStore.isAuthenticated">
+            <router-link
+              to="/dashboard"
+              @click="closeMobileMenu"
+              class="block px-4 py-3 rounded-lg text-white hover:bg-white/10 transition-colors font-medium"
+            >
+              {{ $t("common.dashboard") }}
+            </router-link>
+            <button
+              @click="handleMobileLogout"
+              class="w-full text-left px-4 py-3 rounded-lg text-red-400 hover:bg-white/10 transition-colors font-medium"
+            >
+              {{ $t("common.logout") }}
+            </button>
+          </template>
+          <template v-else>
+            <router-link
+              to="/login"
+              @click="closeMobileMenu"
+              class="block px-4 py-3 rounded-lg text-white hover:bg-white/10 transition-colors font-medium"
+            >
+              {{ $t("common.login") }}
+            </router-link>
+          </template>
+
+          <!-- Language Switch -->
+          <button
+            @click="handleMobileLanguageToggle"
+            class="w-full text-left px-4 py-3 rounded-lg text-white hover:bg-white/10 transition-colors font-medium flex items-center justify-between"
+          >
+            <span>{{ $t("common.language") || "Language" }}</span>
+            <span class="font-bold">{{
+              settingsStore.locale === "ar" ? "EN" : "عربي"
+            }}</span>
+          </button>
+
+          <!-- Theme Toggle -->
+          <button
+            @click="handleMobileThemeToggle"
+            class="w-full text-left px-4 py-3 rounded-lg text-white hover:bg-white/10 transition-colors font-medium flex items-center justify-between"
+          >
+            <span>{{
+              themeStore.theme === "dark" ? "Light Mode" : "Dark Mode"
+            }}</span>
+            <SunIcon v-if="themeStore.theme === 'dark'" class="h-5 w-5" />
+            <MoonIcon v-else class="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+    </transition>
   </nav>
 </template>
 
 <script setup>
+import { ref } from "vue";
 import { useSettingsStore } from "@/stores/settings";
 import { useThemeStore } from "@/stores/theme";
 import { useAuthStore } from "@/stores/auth";
@@ -95,6 +203,8 @@ const themeStore = useThemeStore();
 const authStore = useAuthStore();
 const router = useRouter();
 
+const mobileMenuOpen = ref(false);
+
 const toggleLanguage = () => {
   const newLang = settingsStore.locale === "ar" ? "en" : "ar";
   settingsStore.setLocale(newLang);
@@ -103,5 +213,28 @@ const toggleLanguage = () => {
 const handleLogout = () => {
   authStore.logout();
   router.push("/login");
+};
+
+const toggleMobileMenu = () => {
+  mobileMenuOpen.value = !mobileMenuOpen.value;
+};
+
+const closeMobileMenu = () => {
+  mobileMenuOpen.value = false;
+};
+
+const handleMobileLanguageToggle = () => {
+  toggleLanguage();
+  closeMobileMenu();
+};
+
+const handleMobileThemeToggle = () => {
+  themeStore.setTheme(themeStore.theme === "dark" ? "light" : "dark");
+  closeMobileMenu();
+};
+
+const handleMobileLogout = () => {
+  handleLogout();
+  closeMobileMenu();
 };
 </script>

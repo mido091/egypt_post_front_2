@@ -7,6 +7,7 @@ import api from "@/api";
 import { fuzzyMatch } from "@/utils/textNormalize";
 import BaseInput from "@/components/common/BaseInput.vue";
 import { useI18n } from "vue-i18n";
+import { translateGovernorate } from "@/utils/governorates";
 
 const route = useRoute();
 const router = useRouter();
@@ -19,6 +20,10 @@ const selectedOfficeId = ref(null);
 const showSuggestions = ref(false);
 const searchInputRef = ref(null);
 const allGovernorates = ref({});
+
+const currentDescription = computed(() => {
+  return t(`governorateDescriptions.${govCode.value}`);
+});
 
 const fetchOffices = async () => {
   try {
@@ -41,10 +46,20 @@ const fetchOffices = async () => {
   }
 };
 
+/* ⬇⬇⬇ التعديل الأساسي هنا ⬇⬇⬇ */
 const filteredOffices = computed(() => {
-  if (!searchQuery.value) return offices.value;
+  // إخفاء المكاتب اللي مالهاش ترجمة إنجليزية عند لغة EN
+  let baseList = offices.value;
 
-  return offices.value.filter((office) => {
+  if (locale.value === "en") {
+    baseList = baseList.filter(
+      (office) => office.name_en && office.name_en.trim() !== ""
+    );
+  }
+
+  if (!searchQuery.value) return baseList;
+
+  return baseList.filter((office) => {
     return (
       fuzzyMatch(office.name, searchQuery.value) ||
       fuzzyMatch(office.address, searchQuery.value) ||
@@ -54,10 +69,19 @@ const filteredOffices = computed(() => {
   });
 });
 
+/* ⬇⬇⬇ نفس الفكرة مع suggestions ⬇⬇⬇ */
 const filteredSuggestions = computed(() => {
   if (!searchQuery.value || searchQuery.value.length < 1) return [];
 
-  const suggestions = offices.value.filter((office) => {
+  let baseList = offices.value;
+
+  if (locale.value === "en") {
+    baseList = baseList.filter(
+      (office) => office.name_en && office.name_en.trim() !== ""
+    );
+  }
+
+  const suggestions = baseList.filter((office) => {
     return (
       fuzzyMatch(office.name, searchQuery.value) ||
       fuzzyMatch(office.address, searchQuery.value) ||
@@ -66,13 +90,13 @@ const filteredSuggestions = computed(() => {
     );
   });
 
-  return suggestions.slice(0, 8); // Limit to 8 suggestions
+  return suggestions.slice(0, 8);
 });
+/* ⬆⬆⬆ انتهى التعديل ⬆⬆⬆ */
 
 const selectSuggestion = (office) => {
   searchQuery.value = office.name;
   showSuggestions.value = false;
-  // Navigate to office details page
   router.push({
     name: "office-details",
     params: { id: office._id || office.id },
@@ -131,12 +155,21 @@ onUnmounted(() => {
           >
             &larr; {{ $t("common.home") }}
           </router-link>
+
           <div
             class="flex flex-col md:flex-row md:items-center justify-between gap-4"
           >
             <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-              {{ govCode }}
+              {{ translateGovernorate(govCode, locale) }}
             </h1>
+
+            <!-- Description -->
+            <p
+              v-if="currentDescription"
+              class="text-gray-600 dark:text-gray-400 text-sm md:text-base mt-2 max-w-2xl"
+            >
+              {{ currentDescription }}
+            </p>
 
             <!-- Search -->
             <div class="w-full md:w-96 relative" ref="searchInputRef">
@@ -148,7 +181,7 @@ onUnmounted(() => {
                 @focus="handleSearchFocus"
               />
 
-              <!-- Autocomplete Dropdown -->
+              <!-- Autocomplete -->
               <transition
                 enter-active-class="transition duration-150 ease-out"
                 enter-from-class="opacity-0 translate-y-1"
@@ -165,11 +198,11 @@ onUnmounted(() => {
                     v-for="office in filteredSuggestions"
                     :key="office._id || office.id"
                     @click="selectSuggestion(office)"
-                    class="px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-150 ease-in-out border-b border-gray-50 dark:border-gray-700 last:border-b-0 group"
+                    class="px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors border-b border-gray-50 dark:border-gray-700 last:border-b-0 group"
                   >
                     <div class="flex items-start gap-3">
                       <BuildingOfficeIcon
-                        class="h-5 w-5 text-primary-500 group-hover:text-primary-600 mt-0.5 flex-shrink-0"
+                        class="h-5 w-5 text-primary-500 group-hover:text-primary-600 mt-0.5"
                       />
                       <div class="flex-1 min-w-0">
                         <div
@@ -192,7 +225,7 @@ onUnmounted(() => {
                         </div>
                       </div>
                       <span
-                        class="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-300 font-mono flex-shrink-0"
+                        class="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-300 font-mono"
                       >
                         {{ office.postal_code }}
                       </span>
@@ -204,6 +237,7 @@ onUnmounted(() => {
           </div>
         </div>
 
+        <!-- Loading -->
         <div v-if="loading" class="flex justify-center py-12">
           <div
             class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"

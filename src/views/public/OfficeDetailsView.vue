@@ -2,15 +2,30 @@
 import { ref, onMounted, computed } from "vue";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  BuildingOfficeIcon,
+  MapPinIcon,
+} from "@heroicons/vue/24/outline";
 import LeafletMap from "@/components/map/LeafletMap.vue";
 import api from "@/api";
 import { convertXYtoLatLng } from "@/utils/mapUtils";
+import {
+  getMostVisitedOffices,
+  getMostVisitedGovernorates,
+} from "@/utils/randomSelection";
+import { translateGovernorate } from "@/utils/governorates";
+import { translateOfficeName } from "@/i18n/mostVisitedOffices";
 
 const route = useRoute();
 const office = ref(null);
 const loading = ref(true);
 const usefulInfo = ref(null);
-const { locale } = useI18n();
+const mostVisitedOffices = ref([]);
+const mostVisitedGovs = ref([]);
+const governorates = ref({});
+const { t, locale } = useI18n();
 
 const displayKeys = [
   "atm",
@@ -88,6 +103,12 @@ const fetchOffice = async () => {
     office.value = response.data;
     // Fetch useful info after office data is loaded (need postal code)
     await fetchUsefulInformation();
+
+    // Fetch all posts to get most visited offices and governorates
+    const allPostsResponse = await api.get("/posts");
+    governorates.value = allPostsResponse.data;
+    mostVisitedOffices.value = getMostVisitedOffices(allPostsResponse.data);
+    mostVisitedGovs.value = getMostVisitedGovernorates(allPostsResponse.data);
   } catch (error) {
     console.error("Failed to fetch office:", error);
   } finally {
@@ -140,7 +161,7 @@ onMounted(() => {
             }}
           </h1>
           <p class="text-gray-500 dark:text-gray-400 mt-2">
-            {{ office.gov_code }}
+            {{ translateGovernorate(office.gov_code, locale) }}
           </p>
         </div>
 
@@ -207,7 +228,9 @@ onMounted(() => {
                 <div>
                   <label
                     class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-1"
-                    >{{ $t("office.working_days") }}</label
+                    >{{
+                      $i18n.locale === "ar" ? "أيام العمل" : "Working Days"
+                    }}</label
                   >
                   <p class="text-gray-900 dark:text-gray-100">
                     {{
@@ -223,7 +246,9 @@ onMounted(() => {
                 <div>
                   <label
                     class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-1"
-                    >{{ $t("office.working_hours") }}</label
+                    >{{
+                      $i18n.locale === "ar" ? "مواعيد العمل" : "Working Hours"
+                    }}</label
                   >
                   <p class="text-gray-900 dark:text-gray-100">
                     {{
@@ -263,7 +288,7 @@ onMounted(() => {
                 <div>
                   <label
                     class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-1"
-                    >{{ $t("office.holidays") }}</label
+                    >{{ $i18n.locale === "ar" ? "العطلات" : "Holidays" }}</label
                   >
                   <p class="text-gray-900 dark:text-gray-100">
                     {{
@@ -345,6 +370,108 @@ onMounted(() => {
                 <span class="text-gray-900 dark:text-white font-semibold">
                   {{ translateValue(usefulInfo[key]) }}
                 </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Most Visited Section -->
+          <!-- Most Visited Section -->
+          <div
+            class="w-full lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-8 mt-8"
+          >
+            <!-- Most Visited Governorates -->
+            <div>
+              <h2
+                class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-3"
+              >
+                <span
+                  class="p-2 rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400"
+                >
+                  <MapPinIcon class="h-6 w-6" />
+                </span>
+                {{ t("home.mostVisitedGovernorates") }}
+              </h2>
+
+              <div class="grid gap-4">
+                <router-link
+                  v-for="govName in mostVisitedGovs"
+                  :key="govName"
+                  :to="{ name: 'governorate', params: { code: govName } }"
+                  class="group bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100 dark:border-gray-700 flex items-center justify-between"
+                >
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="h-12 w-12 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 group-hover:bg-primary-50 group-hover:text-primary-500 dark:group-hover:bg-gray-600 dark:group-hover:text-primary-400 transition-colors"
+                    >
+                      <MapPinIcon class="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 class="font-bold text-gray-900 dark:text-white">
+                        {{ translateGovernorate(govName, locale) }}
+                      </h3>
+                      <p class="text-sm text-gray-500 dark:text-gray-400">
+                        {{ governorates[govName]?.length || 0 }}
+                        {{ t("dashboard.total_offices") }}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div
+                    class="text-gray-300 dark:text-gray-600 group-hover:text-primary-500 dark:group-hover:text-primary-400 transform group-hover:translate-x-1 rtl:group-hover:-translate-x-1 transition-all"
+                  >
+                    <ArrowRightIcon v-if="locale === 'en'" class="h-5 w-5" />
+                    <ArrowLeftIcon v-else class="h-5 w-5" />
+                  </div>
+                </router-link>
+              </div>
+            </div>
+
+            <!-- Most Visited Offices -->
+            <div>
+              <h2
+                class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-3"
+              >
+                <span
+                  class="p-2 rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400"
+                >
+                  <BuildingOfficeIcon class="h-6 w-6" />
+                </span>
+                {{ t("home.mostVisitedOffices") }}
+              </h2>
+
+              <div class="grid gap-4">
+                <router-link
+                  v-for="office in mostVisitedOffices"
+                  :key="office.id"
+                  :to="{
+                    name: 'office-details',
+                    params: { id: office._id || office.id },
+                  }"
+                  class="group bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100 dark:border-gray-700 flex items-center justify-between"
+                >
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="h-12 w-12 rounded-lg bg-primary-50 dark:bg-gray-700 flex items-center justify-center text-primary-600 dark:text-primary-400 group-hover:bg-primary-500 group-hover:text-white dark:group-hover:bg-primary-500 dark:group-hover:text-white transition-colors"
+                    >
+                      <BuildingOfficeIcon class="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 class="font-bold text-gray-900 dark:text-white">
+                        {{ translateOfficeName(office.name, locale) }}
+                      </h3>
+                      <p class="text-sm text-gray-500 dark:text-gray-400">
+                        {{ translateGovernorate(office.govName, locale) }}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div
+                    class="text-gray-300 dark:text-gray-600 group-hover:text-primary-500 dark:group-hover:text-primary-400 transform group-hover:translate-x-1 rtl:group-hover:-translate-x-1 transition-all"
+                  >
+                    <ArrowRightIcon v-if="locale === 'en'" class="h-5 w-5" />
+                    <ArrowLeftIcon v-else class="h-5 w-5" />
+                  </div>
+                </router-link>
               </div>
             </div>
           </div>

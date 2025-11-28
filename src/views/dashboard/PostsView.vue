@@ -124,7 +124,14 @@
       @confirm="handleDelete"
     >
       <p class="text-gray-600 dark:text-gray-300">
-        {{ $t("posts.delete_confirm", { name: postToDelete?.name }) }}
+        {{
+          $t("posts.delete_confirm", {
+            name:
+              $i18n.locale === "en"
+                ? postToDelete?.name_en || postToDelete?.name
+                : postToDelete?.name_ar || postToDelete?.name,
+          })
+        }}
       </p>
       <template #footer>
         <BaseButton variant="danger" @click="handleDelete">{{
@@ -186,12 +193,20 @@ const governorates = [
   { code: "29", name: "سوهاج" },
 ];
 
-const headers = [
-  { key: "name", label: t("posts.name") },
+const { locale } = useI18n();
+
+const headers = computed(() => [
+  {
+    key: locale.value === "en" ? "name_en" : "name",
+    label: t("posts.name"),
+  },
   { key: "gov_code", label: t("posts.governorate") },
-  { key: "address", label: t("posts.address") },
+  {
+    key: locale.value === "en" ? "address_en" : "address",
+    label: t("posts.address"),
+  },
   { key: "postal_code", label: "Postal Code" },
-];
+]);
 
 // Modal State
 const isModalOpen = ref(false);

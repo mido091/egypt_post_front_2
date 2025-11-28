@@ -12,6 +12,8 @@ import {
   getMostVisitedGovernorates,
   getMostVisitedOffices,
 } from "@/utils/randomSelection";
+import { translateGovernorate } from "@/utils/governorates";
+import { translateOfficeName } from "@/i18n/mostVisitedOffices";
 import api from "@/api";
 import publicApi from "@/api/public";
 import { normalizeText, fuzzyMatch } from "@/utils/textNormalize";
@@ -130,10 +132,13 @@ const filteredSuggestions = computed(() => {
 
   Object.entries(governorates.value).forEach(([govName, offices]) => {
     // 1. Check Governorate Name
-    const govMatch = fuzzyMatch(govName, query);
-    const nameMatch = normalizeText(govName).includes(query);
+    // For governorates, we use the translation utility which handles locale
+    const translatedGovName = translateGovernorate(govName, locale.value);
+    const govMatch =
+      fuzzyMatch(translatedGovName, query) ||
+      normalizeText(translatedGovName).includes(query);
 
-    if (govMatch || nameMatch) {
+    if (govMatch) {
       const firstOffice = offices[0];
       suggestions.push({
         name: govName,
@@ -147,21 +152,30 @@ const filteredSuggestions = computed(() => {
 
     // 2. Check Offices inside this Governorate
     offices.forEach((office) => {
-      const officeName = office.name;
+      const name =
+        locale.value === "en"
+          ? office.name_en || office.name
+          : office.name_ar || office.name;
+
+      // Note: We don't have address in the suggestion object currently, but we filter by it?
+      // The original code didn't filter by address for suggestions, only name and postal code.
+      // Wait, let me check the original code again.
+      // Original: const officeMatch = fuzzyMatch(officeName, query) || normalizeText(officeName).includes(query);
+      // It only checked officeName.
+
       const postalCode = office.postal_code
         ? office.postal_code.toString()
         : "";
 
       const officeMatch =
-        fuzzyMatch(officeName, query) ||
-        normalizeText(officeName).includes(query);
+        fuzzyMatch(name, query) || normalizeText(name).includes(query);
       const codeMatch = postalCode.includes(query);
 
       if (officeMatch || codeMatch) {
         suggestions.push({
-          name: officeName,
-          name_ar: office.name_ar || officeName,
-          name_en: office.name_en || officeName,
+          name: office.name, // Keep original name for ID/reference
+          name_ar: office.name_ar || office.name,
+          name_en: office.name_en || office.name,
           count: postalCode, // Show postal code for offices
           code: office._id || office.id,
           type: "office",
@@ -259,7 +273,7 @@ onUnmounted(() => {
                   v-model="searchQuery"
                   type="text"
                   :placeholder="t('common.search_placeholder')"
-                  class="w-full px-6 py-4 rounded-full text-gray-900 focus:outline-none focus:ring-4 focus:ring-primary-400 shadow-md text-lg relative z-10 bg-white"
+                  class="w-full px-6 py-4 rounded-full text-gray-900 focus:outline-none focus:ring-4 focus:ring-primary-400 shadow-md relative z-10 bg-white text-base /* حجم صغير للموبايل */ md:text-lg /* يرجع للحجم الكبير على الشاشات الأكبر */"
                   @input="handleSearchInput"
                   @focus="handleSearchFocus"
                 />
@@ -300,7 +314,12 @@ onUnmounted(() => {
                               class="text-gray-900 dark:text-white font-semibold text-base group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-200"
                             >
                               {{
-                                locale === "ar"
+                                suggestion.type === "governorate"
+                                  ? translateGovernorate(
+                                      suggestion.name,
+                                      locale
+                                    )
+                                  : locale === "ar"
                                   ? suggestion.name_ar || suggestion.name
                                   : suggestion.name_en || suggestion.name
                               }}
@@ -310,11 +329,10 @@ onUnmounted(() => {
                             >
                               {{
                                 suggestion.type === "office"
-                                  ? locale === "ar"
-                                    ? suggestion.gov_name_ar ||
-                                      suggestion.gov_name
-                                    : suggestion.gov_name_en ||
-                                      suggestion.gov_name
+                                  ? translateGovernorate(
+                                      suggestion.gov_name,
+                                      locale
+                                    )
                                   : t("common.governorate")
                               }}
                             </span>
@@ -401,21 +419,17 @@ onUnmounted(() => {
             class="group bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100 dark:border-gray-700 overflow-hidden"
           >
             <div
-              class="h-32 bg-gray-100 dark:bg-gray-700 flex items-center justify-center group-hover:bg-primary-50 dark:group-hover:bg-gray-600 transition-colors"
+              class="h-32 bg-white dark:bg-white flex items-center justify-center group-hover:bg-white dark:group-hover:bg-white transition-colors"
             >
               <img
                 :src="`/${index + 1}.jpg`"
                 :alt="govName"
-                class="w-full h-full object-cover"
+                class="w-full h-full object-contain p-4"
               />
             </div>
             <div class="p-6">
               <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                {{
-                  locale === "ar"
-                    ? offices[0]?.gov_name_ar || govName
-                    : offices[0]?.gov_name_en || govName
-                }}
+                {{ translateGovernorate(govName, locale) }}
               </h3>
               <p class="text-gray-500 dark:text-gray-400">
                 {{ offices.length }} {{ t("dashboard.total_offices") }}
@@ -457,11 +471,7 @@ onUnmounted(() => {
                   </div>
                   <div>
                     <h3 class="font-bold text-gray-900 dark:text-white">
-                      {{
-                        locale === "ar"
-                          ? governorates[govName]?.[0]?.gov_name_ar || govName
-                          : governorates[govName]?.[0]?.gov_name_en || govName
-                      }}
+                      {{ translateGovernorate(govName, locale) }}
                     </h3>
                     <p class="text-sm text-gray-500 dark:text-gray-400">
                       {{ governorates[govName]?.length || 0 }}
@@ -509,18 +519,10 @@ onUnmounted(() => {
                   </div>
                   <div>
                     <h3 class="font-bold text-gray-900 dark:text-white">
-                      {{
-                        locale === "ar"
-                          ? office.name_ar || office.name
-                          : office.name_en || office.name
-                      }}
+                      {{ translateOfficeName(office.name, locale) }}
                     </h3>
                     <p class="text-sm text-gray-500 dark:text-gray-400">
-                      {{
-                        locale === "ar"
-                          ? office.gov_name_ar || office.govName
-                          : office.gov_name_en || office.govName
-                      }}
+                      {{ translateGovernorate(office.govName, locale) }}
                     </p>
                   </div>
                 </div>

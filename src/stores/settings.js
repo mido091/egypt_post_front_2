@@ -26,8 +26,7 @@ export const useSettingsStore = defineStore("settings", {
         : state.settings.site_name,
     currentLogo: (state) => {
       const themeStore = useThemeStore();
-      const baseUrl =
-        "https://egypt-post-452k34bh1-mido091s-projects.vercel.app";
+      const baseUrl = "https://egy-post-server.vercel.app";
 
       const getFullUrl = (path) => {
         if (!path) return null;

@@ -14,7 +14,7 @@ This is the Vue 3 + Vite frontend for the Admin Dashboard.
     Create a `.env` file in the root directory:
 
     ```env
-    VITE_API_URL=https://egypt-post-452k34bh1-mido091s-projects.vercel.app/api
+    VITE_API_URL=https://egy-post-server.vercel.app/api
     ```
 
 3.  **Run Development Server**:
